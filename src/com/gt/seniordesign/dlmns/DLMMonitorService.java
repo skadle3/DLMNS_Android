@@ -37,7 +37,7 @@ public class DLMMonitorService extends Service {
 				 connection_success = true;
 				 
 				 try {
-					 Thread.sleep(1000*1);
+					 Thread.sleep(1000);
 				 } catch (Exception ex) {
 						
 				 }
@@ -108,7 +108,7 @@ public class DLMMonitorService extends Service {
  	 			    	if (!connection_success) {
  	 			    		bluetoothAdapter.disable();
  	 			    		try {
- 	 			    			Thread.sleep(250);
+ 	 			    			Thread.sleep(500);
  	 			    		} catch (Exception ex) {
  	 			    			
  	 			    		}
@@ -156,9 +156,15 @@ public class DLMMonitorService extends Service {
 		 lastEntry = SystemClock.elapsedRealtime();
 		 myDevice.getDeviceContext().connectGatt(getApplicationContext(), false, new MyBleCallback());
 		 
+		 try {
+   			Thread.sleep(2000);
+   		} catch (Exception ex) {
+   			
+   		}
+		 
 		 bluetoothAdapter.disable();
-		      try {
-			 Thread.sleep(250);
+		 try {
+			 Thread.sleep(500);
 		 } catch (Exception ex) {
 				
 		 }
