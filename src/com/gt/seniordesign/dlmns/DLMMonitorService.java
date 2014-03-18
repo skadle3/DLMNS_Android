@@ -37,14 +37,20 @@ public class DLMMonitorService extends Service {
 				 connection_success = true;
 				 
 				 KnownDevice myDevice = getKnownDevice(gatt.getDevice().hashCode());
-				 myDevice.lastconnect_success = true;
-				 //setConnectAlarm(myDevice.getDutyCycle(), gatt.getDevice().hashCode());
+				 
+				 // We need to do a timer sync here
+				 // 1. Cancel the previous alarm that was created
+				 myDevice.ignoreNext = true;
+				 //am.cancel(myDevice.pi);
+				 // 2. Set a new one (the tag should do the same)
 				 
 				 try {
-					 Thread.sleep(1000);
+					 Thread.sleep(1500);
 				 } catch (Exception ex) {
 						
 				 }
+				 
+				 setConnectAlarm(myDevice.getDutyCycle(), gatt.getDevice().hashCode());
 				 
 				 gatt.disconnect();
 				 gatt.close();
@@ -112,28 +118,35 @@ public class DLMMonitorService extends Service {
  	 		KnownDevice foundDevice = getKnownDevice(deviceHash);
  	 		connection_success = false;
  	 		
- 	 		// Reset the alarm for the next time
- 	 		if (++(foundDevice.connectCount) >= 10) {
- 	 			foundDevice.connectCount = 0;
- 	 			setConnectAlarm(foundDevice.getDutyCycle() + 1, deviceHash);
+ 	 		if (!foundDevice.ignoreNext) {
+ 	 			
+ 	 			// Reset the alarm for the next time
+ 	 	 		if (++(foundDevice.connectCount) >= 10) {
+ 	 	 			foundDevice.connectCount = 0;
+ 	 	 			setConnectAlarm(foundDevice.getDutyCycle() + 1, deviceHash);
+ 	 	 		} else {
+ 	 	 			foundDevice.connectCount++;
+ 	 	 			setConnectAlarm(foundDevice.getDutyCycle(), deviceHash);
+ 	 	 		}
+ 	 	 		
+ 	 	 		// Clear the connected devices
+ 	 	 		connectedDevices.clear();
+ 				
+ 	 	 		// Make the connection
+ 	 	 		if (foundDevice != null) {
+ 	 	 			
+ 	 	 			Handler scan_handler = new Handler();
+ 	 	 			connectionCheck r = new connectionCheck(foundDevice.getDutyCycle(), deviceHash);
+ 	 	 		
+ 	 	 			foundDevice.getDeviceContext().connectGatt(getApplicationContext(), false, new MyBleCallback());
+ 	 	 			scan_handler.postDelayed(r, 2000);
+ 	 	 			
+ 	 	 		}
  	 		} else {
- 	 			foundDevice.connectCount++;
- 	 			setConnectAlarm(foundDevice.getDutyCycle(), deviceHash);
+ 	 			foundDevice.ignoreNext = false;
  	 		}
  	 		
- 	 		// Clear the connected devices
- 	 		connectedDevices.clear();
-			
- 	 		// Make the connection
- 	 		if (foundDevice != null) {
- 	 			
- 	 			Handler scan_handler = new Handler();
- 	 			connectionCheck r = new connectionCheck(foundDevice.getDutyCycle(), deviceHash);
  	 		
- 	 			foundDevice.getDeviceContext().connectGatt(getApplicationContext(), false, new MyBleCallback());
- 	 			scan_handler.postDelayed(r, 2000);
- 	 			
- 	 		}
  	 		                		
 		 }
 	 };
@@ -171,7 +184,7 @@ public class DLMMonitorService extends Service {
 		 // See if we need to add space between the connections (needs to be verified)
 		 while (SystemClock.elapsedRealtime() < lastEntry + 1000*15) { /*spin*/ }
 		 lastEntry = SystemClock.elapsedRealtime();
-		 myDevice.getDeviceContext().connectGatt(getApplicationContext(), false, new MyBleCallback());
+		 BluetoothGatt currentGatt = myDevice.getDeviceContext().connectGatt(getApplicationContext(), false, new MyBleCallback());
 		 
 		 // Now, start the alarm (here or on disconnect??)...Probably on Disconnect
 		 
@@ -180,7 +193,8 @@ public class DLMMonitorService extends Service {
    			Thread.sleep(2000);
    		 } catch (Exception ex) {}
 		 
-		 resetBluetooth(); 
+		 resetBluetooth();
+		 //currentGatt.disconnect();
 		 
 		 
 		 try {
@@ -199,8 +213,9 @@ public class DLMMonitorService extends Service {
 	 public void setConnectAlarm(int time_secs, int deviceHash) {
 		 Intent newIntent = new Intent("com.gt.seniordesign.connectTimer");
 		 newIntent.putExtra("hash_id", deviceHash);
-		 PendingIntent pi = PendingIntent.getBroadcast(this, (int)System.currentTimeMillis(), newIntent,0);
+		 KnownDevice myDevice = getKnownDevice(deviceHash);
+		 myDevice.pi = PendingIntent.getBroadcast(this, (int)System.currentTimeMillis(), newIntent,0);
 		 am = (AlarmManager)(this.getSystemService(Context.ALARM_SERVICE ));
-		 am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP,SystemClock.elapsedRealtime() + 1000*time_secs, pi);
+		 am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP,SystemClock.elapsedRealtime() + 1000*time_secs, myDevice.pi);
 	 }
 }

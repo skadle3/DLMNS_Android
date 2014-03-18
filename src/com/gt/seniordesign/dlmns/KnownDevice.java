@@ -9,7 +9,9 @@ public class KnownDevice {
 	private String shortName;
 	private int duty_cycle;
 	public boolean lastconnect_success = false;
+	public boolean ignoreNext = false;
 	public int connectCount = 0;
+	public PendingIntent pi;
 	
 	public KnownDevice(BluetoothDevice newDevice, String newName, int duty_cycle) {
 		thisDevice = newDevice;
