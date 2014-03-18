@@ -2,16 +2,16 @@ package com.gt.seniordesign.dlmns;
 
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
 
 public class KnownDevice {
 
 	private BluetoothDevice thisDevice;
 	private String shortName;
 	private int duty_cycle;
-	public boolean lastconnect_success = false;
 	public boolean ignoreNext = false;
 	public int connectCount = 0;
-	public PendingIntent pi;
+	public BluetoothGatt currentGattConnection;
 	
 	public KnownDevice(BluetoothDevice newDevice, String newName, int duty_cycle) {
 		thisDevice = newDevice;

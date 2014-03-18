@@ -94,7 +94,7 @@ public class ScanActivity extends ListActivity {
         bluetoothAdapter.startLeScan(mLeScanCallback);
         
         // Need to go to the add device form here
-        KnownDevice newStoredDevice = new KnownDevice(device, "Wallet", 16);
+        KnownDevice newStoredDevice = new KnownDevice(device, "Wallet", 32);
         MainActivity.addKnownDevice(newStoredDevice);
     }
    
