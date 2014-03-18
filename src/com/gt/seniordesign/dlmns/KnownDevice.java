@@ -1,5 +1,6 @@
 package com.gt.seniordesign.dlmns;
 
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
 
 public class KnownDevice {
@@ -7,6 +8,7 @@ public class KnownDevice {
 	private BluetoothDevice thisDevice;
 	private String shortName;
 	private int duty_cycle;
+	public PendingIntent currentIntent;
 	
 	public KnownDevice(BluetoothDevice newDevice, String newName, int duty_cycle) {
 		thisDevice = newDevice;

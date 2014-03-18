@@ -35,6 +35,8 @@ public class DLMMonitorService extends Service {
 			 if (newState == 2) {
 				 
 				 connection_success = true;
+				 KnownDevice myDevice = getKnownDevice(gatt.getDevice().hashCode());
+				 setConnectAlarm(myDevice.getDutyCycle(), gatt.getDevice().hashCode());
 				 
 				 try {
 					 Thread.sleep(1000);
@@ -44,10 +46,6 @@ public class DLMMonitorService extends Service {
 				 
 				 gatt.disconnect();
 				 gatt.close();
-				 
-//				 // We really need to do this where we disconnect
-//				 int hash_code = gatt.getDevice().hashCode();
-//				 int duty_cycle = getKnownDevice(gatt.getDevice().hashCode()).getDutyCycle();
 				 
 			 } else {
 				 connection_success = true;
@@ -78,6 +76,29 @@ public class DLMMonitorService extends Service {
 	 boolean connection_success = false;
 	 BluetoothDevice currentDevice;
 	 
+	 private class connectionCheck implements Runnable {
+		 
+		 private int dutyCycle;
+		 private int deviceHash;
+		 
+		 public connectionCheck(int dutyCycle, int deviceHash) {
+			 this.dutyCycle = dutyCycle;
+			 this.deviceHash = deviceHash;
+		 }
+		 
+		 public void run() {
+			 	// see if the device actually got connected
+		    	// if not we need to stop the connection (it's bad i know)
+		    	if (!connection_success) {
+		    		// Set the alarm for duty cycle - 1 second
+		    		setConnectAlarm(dutyCycle - 1, deviceHash);
+		    		resetBluetooth();
+		    		Toast.makeText(getApplicationContext(), "Lost a Tag!!", Toast.LENGTH_SHORT).show();
+		    		
+		    	}
+		 } 
+	 }
+	 
 	 public BroadcastReceiver MyReceiver = new BroadcastReceiver()  {
 		 @Override
 		 public void onReceive(Context c, Intent i) {
@@ -90,7 +111,7 @@ public class DLMMonitorService extends Service {
  	 		connection_success = false;
  	 		
  	 		// Reset the alarm for the next time
- 	 		setConnectAlarm(foundDevice.getDutyCycle(), deviceHash);
+ 	 		//setConnectAlarm(foundDevice.getDutyCycle(), deviceHash);
  	 		
  	 		// Clear the connected devices
  	 		connectedDevices.clear();
@@ -99,35 +120,23 @@ public class DLMMonitorService extends Service {
  	 		if (foundDevice != null) {
  	 			
  	 			Handler scan_handler = new Handler();
- 	 			Runnable r = new Runnable()
- 	 			{
- 	 			    public void run() 
- 	 			    {
- 	 			    	// see if the device actually got connected
- 	 			    	// if not we need to stop the connection (it's bad i know)
- 	 			    	if (!connection_success) {
- 	 			    		bluetoothAdapter.disable();
- 	 			    		try {
- 	 			    			Thread.sleep(500);
- 	 			    		} catch (Exception ex) {
- 	 			    			
- 	 			    		}
- 	 			    		bluetoothAdapter.enable();
- 	 			    		Toast.makeText(getApplicationContext(), "Lost a Tag!!", Toast.LENGTH_SHORT).show();
- 	 			    		
- 	 			    	} else {
- 	 			    		
- 	 			    	}
- 	 			    }
- 	 			};
- 	 			
+ 	 			connectionCheck r = new connectionCheck(foundDevice.getDutyCycle(), deviceHash);
+ 	 		
  	 			foundDevice.getDeviceContext().connectGatt(getApplicationContext(), false, new MyBleCallback());
- 	 			scan_handler.postDelayed(r, 500);
+ 	 			scan_handler.postDelayed(r, 1000);
  	 			
  	 		}
  	 		                		
 		 }
 	 };
+	 
+	 public void resetBluetooth() {
+		 bluetoothAdapter.disable();
+		 try {
+			 Thread.sleep(500);
+		 } catch (Exception ex) {}
+		 bluetoothAdapter.enable();
+	 }
 	 
 	 
 	 public boolean initialize() {
@@ -151,28 +160,19 @@ public class DLMMonitorService extends Service {
 		 // This is the hashcode for the actual BluetoothDevice instance
 		 int deviceHash = myDevice.getDeviceContext().hashCode();
 		 
-		 // See if we need to add space between the connections
+		 // See if we need to add space between the connections (needs to be verified)
 		 while (SystemClock.elapsedRealtime() < lastEntry + 1000*15) { /*spin*/ }
 		 lastEntry = SystemClock.elapsedRealtime();
 		 myDevice.getDeviceContext().connectGatt(getApplicationContext(), false, new MyBleCallback());
 		 
+		 // Now, start the alarm (here or on disconnect??)...Probably on Disconnect
+		 //setConnectAlarm(myDevice.getDutyCycle(), deviceHash);
+		 
 		 try {
    			Thread.sleep(2000);
-   		} catch (Exception ex) {
-   			
-   		}
+   		 } catch (Exception ex) {}
 		 
-		 bluetoothAdapter.disable();
-		 try {
-			 Thread.sleep(500);
-		 } catch (Exception ex) {
-				
-		 }
-		 bluetoothAdapter.enable();
-		 
-		 // Now, start the alarm (here or on disconnect??)...Probably on Disconnect
-		 setConnectAlarm(myDevice.getDutyCycle(), deviceHash);
-		 
+		 resetBluetooth(); 
 	 }
 	 
 	 public ArrayList<KnownDevice> getKnownDevices() {

@@ -118,6 +118,11 @@ public class MainActivity extends ListActivity {
 		return true;
 	}
 	
+	protected void onDestroy() { 
+		super.onDestroy();
+		getApplicationContext().unbindService(mServiceConnection); 
+	}
+	
 	
 	// Function to toggle Bluetooth on/off to ensure stability
 	public static void toggleBluetooth(BluetoothAdapter adapter) {
@@ -130,6 +135,8 @@ public class MainActivity extends ListActivity {
         }
         adapter.enable();
 	}
+	
+	
 	
 	// Helper function to remove a device from the known device list
 	public static void removeKnownDevice(KnownDevice removeDevice) {
