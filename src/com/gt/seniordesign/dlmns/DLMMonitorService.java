@@ -16,6 +16,7 @@ import android.content.IntentFilter;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.widget.Toast;
 import android.app.AlarmManager;
@@ -36,31 +37,73 @@ public class DLMMonitorService extends Service {
 		@Override
 		public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
 			if (newState == 2) {
-
-				KnownDevice myDevice = getKnownDevice(gatt.getDevice().hashCode());
-				connection_success = true;
-				
 				// Only do this when we need to...check whether duty cycle changed since last time
 				// The timers stay in sync without writing the duty cycle every time
-				gatt.discoverServices();
+				KnownDevice myDevice = getKnownDevice(gatt.getDevice().hashCode());
 
-				// We need to do a timer sync here
-				// 1. Cancel the previous alarm that was created (am.cancel(PI) doesn't reliably always work)
-				myDevice.ignoreNext = true;
-				// 2. Set a new one (the tag should do the same)
-				setConnectAlarm(myDevice.getDutyCycle() + 2, gatt.getDevice().hashCode());
-
-			} else {
-				connection_success = true;
-			}
+				if (true || myDevice.new_duty_cycle != myDevice.getDutyCycle()) { // The duty cycle has changed since the last time
+					gatt.discoverServices();
+				} else {}
+			} // The thing 
 		}
 		
+
 		@Override
-		public void onCharacteristicWrite (BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+		public void onCharacteristicRead(BluetoothGatt gatt,BluetoothGattCharacteristic characteristic,int status) { 
+
+			KnownDevice myDevice = getKnownDevice(gatt.getDevice().hashCode());
+			
 			if (status == 0) {
+				int val = characteristic.getIntValue(17, 0);
+				if (myDevice.tagCount != characteristic.getIntValue(17, 0)) {
+
+					myDevice.setDutyCycle(myDevice.new_duty_cycle); // Handshake complete...assume duty cycle write was succesful
+					myDevice.tagCount = characteristic.getIntValue(17, 0);
+					// We need to do a timer sync here
+					// 1. Cancel the previous alarm that was created (am.cancel(PI) doesn't reliably always work)
+					myDevice.ignoreNext = true;
+					// 2. Set a new one (the tag should do the same)
+					setConnectAlarm(myDevice.getDutyCycle() + 2, gatt.getDevice().hashCode());
+					gatt.disconnect();
+					gatt.close();
+					connection_success = true;
+				} else { // We didn't connect
+					gatt.disconnect();
+					gatt.close();
+					myDevice.currentGattConnection = connectDevice(myDevice);
+				}
+			} else { // We didn't connect
 				gatt.disconnect();
 				gatt.close();
+				myDevice.currentGattConnection = connectDevice(myDevice);
 			}
+
+		}
+		
+	
+
+		@Override
+		public void onCharacteristicWrite (BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+
+			KnownDevice myDevice = getKnownDevice(gatt.getDevice().hashCode());
+
+			try {
+				BluetoothGattService dlmns_service = gatt.getService(DLMNSGattAttributes.lookup("DLMNS Service"));
+				BluetoothGattCharacteristic ack_char = dlmns_service.getCharacteristic(DLMNSGattAttributes.lookup("Acknowledge"));
+				if (!gatt.readCharacteristic(ack_char)) {
+					gatt.disconnect();
+					gatt.close();
+					myDevice.currentGattConnection = connectDevice(myDevice);
+				}
+				// Looks like sometimes the onCharacteristicRead callback isn't always called. We may need to add a handler here
+				// and check that the callback already executes, or we won't be able to catch it.
+					
+			} catch (Exception ex) { // We didn't connect...try again
+				gatt.disconnect();
+				gatt.close();
+				myDevice.currentGattConnection = connectDevice(myDevice);
+			}
+
 		}
 
 		@Override
@@ -69,11 +112,18 @@ public class DLMMonitorService extends Service {
 			KnownDevice myDevice = getKnownDevice(gatt.getDevice().hashCode());
 
 			// Get the BLE Service
-			BluetoothGattService dlmns_service = gatt.getService(DLMNSGattAttributes.lookup("DLMNS Service"));
-			BluetoothGattCharacteristic duty_cycle_char = dlmns_service.getCharacteristic(DLMNSGattAttributes.lookup("Duty Cycle"));
-
-			duty_cycle_char.setValue(new byte[] {(byte)0x01});
-			gatt.writeCharacteristic(duty_cycle_char);
+			try {
+				BluetoothGattService dlmns_service = gatt.getService(DLMNSGattAttributes.lookup("DLMNS Service"));
+				BluetoothGattCharacteristic duty_cycle_char = dlmns_service.getCharacteristic(DLMNSGattAttributes.lookup("Duty Cycle"));
+				// Decode the new duty cycle here
+				duty_cycle_char.setValue(decodeDutyCycle(myDevice.new_duty_cycle));
+				gatt.writeCharacteristic(duty_cycle_char);
+			} catch (Exception ex) { // We really didn't connect
+				gatt.disconnect();
+				gatt.close();
+				myDevice.currentGattConnection = connectDevice(myDevice); // Try to connect again...haha (up to 3 times...this will re-sync the timings too)
+				return;
+			}
 		}
 	};
 
@@ -97,6 +147,21 @@ public class DLMMonitorService extends Service {
 		return null;
 	}
 
+	private byte[] decodeDutyCycle(int dutyCycle) {
+		switch (dutyCycle) {
+		case 32:
+			return new byte[] {(byte)0x01};
+		case 64:
+			return new byte[] {(byte)0x02};
+		case 128:
+			return new byte[] {(byte)0x03};
+		case 256:
+			return new byte[] {(byte)0x04};
+		default:
+			return null;
+		}
+	}
+
 	boolean connection_success = false;
 	BluetoothDevice currentDevice;
 
@@ -109,14 +174,29 @@ public class DLMMonitorService extends Service {
 		}
 
 		public void run() {
-			// see if the device actually got connected
-			// if not we need to stop the connection (it's bad i know)
+
 			if (!connection_success) {
 
-				//resetBluetooth();
-				foundDevice.currentGattConnection.disconnect();
-				Toast.makeText(getApplicationContext(), "Lost a Tag!!", Toast.LENGTH_SHORT).show();
+				try {
+					foundDevice.currentGattConnection.disconnect();
+					foundDevice.currentGattConnection.close();
+				} catch (Exception ex) {}
+				
+				resetBluetooth();
+				
+				try {
+					Thread.sleep(250);
+				} catch (Exception ex) {}
+				
+				if (foundDevice.connectAttempts-- > 0) {
+					Handler scan_handler = new Handler();
+					connectionCheck r = new connectionCheck(foundDevice);
+					foundDevice.currentGattConnection = connectDevice(foundDevice);
+					scan_handler.postDelayed(r, 3000);
 
+				} else {
+					Toast.makeText(getApplicationContext(), "You forgot your " + foundDevice.getName() + "!", Toast.LENGTH_SHORT).show();
+				}
 			}
 		} 
 	}
@@ -127,8 +207,14 @@ public class DLMMonitorService extends Service {
 
 			lastEntry = SystemClock.elapsedRealtime();
 
-			// Get the hashcode of the BluetoothDevice
-			int deviceHash = i.getIntExtra("hash_id", 0);
+			// Try to get the hashcode of the BluetoothDevice
+			int deviceHash = 0;
+			try {
+				deviceHash = i.getIntExtra("hash_id", 0);
+			} catch (Exception ex) {
+				return;
+			}
+
 			KnownDevice foundDevice = getKnownDevice(deviceHash);
 			connection_success = false;
 
@@ -152,25 +238,42 @@ public class DLMMonitorService extends Service {
 					Handler scan_handler = new Handler();
 					connectionCheck r = new connectionCheck(foundDevice);
 
-					foundDevice.currentGattConnection = foundDevice.getDeviceContext().connectGatt(getApplicationContext(), false, new MyBleCallback());
+					foundDevice.connectAttempts = 2;
+					foundDevice.currentGattConnection = connectDevice(foundDevice);
 					scan_handler.postDelayed(r, 3000);
-
 				}
+				
 			} else {
 				foundDevice.ignoreNext = false;
 			}
+		}
+	};
 
+	private class resetThread extends Thread {
 
+		public resetThread() {
+			super();
+			run();
+		}
 
+		@Override
+		public void run() {
+			bluetoothAdapter.disable();
+			while (bluetoothAdapter.isEnabled()) {/*spin*/}
+			bluetoothAdapter.enable();
+			while (!bluetoothAdapter.isEnabled()) {/*spin*/}
 		}
 	};
 
 	public void resetBluetooth() {
-		bluetoothAdapter.disable();
-		try {
-			Thread.sleep(500);
-		} catch (Exception ex) {}
-		bluetoothAdapter.enable();
+
+		while ((new resetThread()).isAlive()) {/*spin*/}
+		return;
+
+	}
+
+	public BluetoothGatt connectDevice(KnownDevice dev) {
+		return dev.currentGattConnection = dev.getDeviceContext().connectGatt(getApplicationContext(), false, new MyBleCallback());
 	}
 
 
@@ -198,23 +301,9 @@ public class DLMMonitorService extends Service {
 		// See if we need to add space between the connections (needs to be verified)
 		while (SystemClock.elapsedRealtime() < lastEntry + 1000*15) { /*spin*/ }
 		lastEntry = SystemClock.elapsedRealtime();
-		BluetoothGatt currentGatt = myDevice.getDeviceContext().connectGatt(getApplicationContext(), false, new MyBleCallback());
+		BluetoothGatt currentGatt = connectDevice(myDevice); // This creates a new thread and avoids locking up UI (Android Warning)
 
-		// Now, start the alarm (here or on disconnect??)...Probably on Disconnect
-
-		try {
-			Thread.sleep(2000);
-		} catch (Exception ex) {}
-
-		//resetBluetooth();
-		//currentGatt.disconnect();
-
-
-		try {
-			Thread.sleep(1500);
-		} catch (Exception ex) {}
-
-		setConnectAlarm(myDevice.getDutyCycle(), deviceHash);
+		setConnectAlarm(myDevice.getDutyCycle() + 2, deviceHash);
 		myDevice.connectCount++;
 
 	}
@@ -223,11 +312,13 @@ public class DLMMonitorService extends Service {
 		return monitoredDevices;
 	}
 
+
 	public void setConnectAlarm(int time_secs, int deviceHash) {
 		Intent newIntent = new Intent("com.gt.seniordesign.connectTimer");
 		newIntent.putExtra("hash_id", deviceHash);
-		KnownDevice myDevice = getKnownDevice(deviceHash);
-		PendingIntent pi = PendingIntent.getBroadcast(this, (int)System.currentTimeMillis(), newIntent,0);
+		int requestCode = (int)System.currentTimeMillis();
+		newIntent.putExtra("requestCode", requestCode);
+		PendingIntent pi = PendingIntent.getBroadcast(this, requestCode, newIntent,0);
 		am = (AlarmManager)(this.getSystemService(Context.ALARM_SERVICE ));
 		am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP,SystemClock.elapsedRealtime() + 1000*time_secs, pi);
 	}

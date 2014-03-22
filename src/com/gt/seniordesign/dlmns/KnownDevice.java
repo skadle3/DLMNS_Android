@@ -8,15 +8,19 @@ public class KnownDevice {
 
 	private BluetoothDevice thisDevice;
 	private String shortName;
-	private int duty_cycle;
+	private int duty_cycle = 16;
 	public boolean ignoreNext = false;
 	public int connectCount = 0;
+	public int tagCount = 0;
 	public BluetoothGatt currentGattConnection;
+	public int connectAttempts = 0;
+	public int new_duty_cycle = 0;
+	
 	
 	public KnownDevice(BluetoothDevice newDevice, String newName, int duty_cycle) {
 		thisDevice = newDevice;
 		shortName = newName;
-		this.duty_cycle = duty_cycle;
+		this.new_duty_cycle = duty_cycle;
 	}
 	
 	public String getName() {

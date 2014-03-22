@@ -61,7 +61,13 @@ public class ScanActivity extends ListActivity {
 	}
 	
 	public void startScan() {
-		bluetoothAdapter.startLeScan(mLeScanCallback);
+		Thread scanThread = new Thread() {
+			@Override
+			public void run() {
+				bluetoothAdapter.startLeScan(mLeScanCallback);
+			}
+		};
+		scanThread.start();
 	}
 	
 	// Callback for BLE Scan
