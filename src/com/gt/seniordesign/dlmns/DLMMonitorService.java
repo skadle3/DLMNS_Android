@@ -13,6 +13,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.media.RingtoneManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
@@ -22,6 +25,7 @@ import android.widget.Toast;
 import android.app.AlarmManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.io.IOException;
 import java.lang.Thread;
 
 public class DLMMonitorService extends Service {
@@ -37,6 +41,7 @@ public class DLMMonitorService extends Service {
 		@Override
 		public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
 			if (newState == 2) {
+				connectionStateCallBackCalled = true;
 				// Only do this when we need to...check whether duty cycle changed since last time
 				// The timers stay in sync without writing the duty cycle every time
 				KnownDevice myDevice = getKnownDevice(gatt.getDevice().hashCode());
@@ -163,6 +168,7 @@ public class DLMMonitorService extends Service {
 	}
 
 	boolean connection_success = false;
+	boolean connectionStateCallBackCalled = false;
 	BluetoothDevice currentDevice;
 
 	private class connectionCheck implements Runnable {
@@ -191,10 +197,11 @@ public class DLMMonitorService extends Service {
 				if (foundDevice.connectAttempts-- > 0) {
 					Handler scan_handler = new Handler();
 					connectionCheck r = new connectionCheck(foundDevice);
+					connectionStateCallBackCalled = false;
 					foundDevice.currentGattConnection = connectDevice(foundDevice);
-					scan_handler.postDelayed(r, 3000);
-
-				} else {
+					scan_handler.postDelayed(r, 5000);
+				} else if (!connectionStateCallBackCalled) {
+					playSound();
 					Toast.makeText(getApplicationContext(), "You forgot your " + foundDevice.getName() + "!", Toast.LENGTH_SHORT).show();
 				}
 			}
@@ -239,8 +246,9 @@ public class DLMMonitorService extends Service {
 					connectionCheck r = new connectionCheck(foundDevice);
 
 					foundDevice.connectAttempts = 2;
+					connectionStateCallBackCalled = false;
 					foundDevice.currentGattConnection = connectDevice(foundDevice);
-					scan_handler.postDelayed(r, 3000);
+					scan_handler.postDelayed(r, 5000);
 				}
 				
 			} else {
@@ -278,7 +286,6 @@ public class DLMMonitorService extends Service {
 
 
 	public boolean initialize() {
-
 		// Setup the Bluetooth Adapter
 		final BluetoothManager bluetoothManager =
 				(BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -310,6 +317,44 @@ public class DLMMonitorService extends Service {
 
 	public ArrayList<KnownDevice> getKnownDevices() {
 		return monitoredDevices;
+	}
+	
+	// I got this code from StackOverflow...need to adapt this to our liking and get the sound tone from her
+	public void playSound() {
+        MediaPlayer mediaPlayer = new MediaPlayer();
+        try {
+            mediaPlayer.setDataSource(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM));
+        } catch (Exception e1) {
+            e1.printStackTrace();
+            mediaPlayer.release();
+            return;
+        }
+        mediaPlayer.setAudioStreamType(AudioManager.STREAM_NOTIFICATION);
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mediaPlayer) {
+                mediaPlayer.release();
+            }
+        });
+        try {
+            mediaPlayer.prepare();
+        } catch (Exception e1) {
+            e1.printStackTrace();
+            mediaPlayer.release();
+            return;
+        }
+        mediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+
+            @Override
+            public void onSeekComplete(MediaPlayer mediaPlayer) {
+                // TODO Auto-generated method stub
+                mediaPlayer.stop();
+                mediaPlayer.start();
+            }
+        });
+        //mediaPlayer.setVolume(volume, volume);
+        mediaPlayer.start();
+
 	}
 
 
