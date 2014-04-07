@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -16,6 +17,7 @@ public class ScanActivity extends ListActivity {
 	
 	private BluetoothAdapter bluetoothAdapter;
 	private BleDevicesAdapter leDeviceListAdapter;
+	public static BluetoothDevice selectedDevice;
 	
 	/** Called when the activity is first created. */
 	@Override
@@ -93,15 +95,14 @@ public class ScanActivity extends ListActivity {
         final BluetoothDevice device = leDeviceListAdapter.getDevice(position);
         if (device == null)
             return;
-
-        leDeviceListAdapter.clear();
-        leDeviceListAdapter.notifyDataSetChanged();
-        bluetoothAdapter.stopLeScan(mLeScanCallback);
-        bluetoothAdapter.startLeScan(mLeScanCallback);
         
-        // Need to go to the add device form here
-        KnownDevice newStoredDevice = new KnownDevice(device, "Wallet", 32);
-        MainActivity.addKnownDevice(newStoredDevice);
+        selectedDevice = device;
+        bluetoothAdapter.stopLeScan(mLeScanCallback);
+        
+        Intent i = new Intent(getBaseContext(), UpdateTagConfig.class);
+        startActivity(i);
+        finish();
+
     }
    
 }

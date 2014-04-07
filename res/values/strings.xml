@@ -7,5 +7,20 @@
     <string name="action_manage">Manage Existing Tags</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_close_scan">Close</string>
-
+    <string name="new_tag_name">New Tag Name:</string>
+    <string name="new_tag_duty_cycle">Alert Threshold:</string>
+    <string name="close_update">Close</string>
+    <string name="save_update">Save</string>
+    <string name="cancel_update">Cancel</string>
+    <string name="wallet_upate">New Object</string>
+    <string name="update_32">32</string>
+    <string name="add_new_tag">Add Tag</string>
+    <string name="modify_tag_name">Modify Tag Name</string>
+    <string name="modify_tag_duty_cycle">Modify Tag Duty Cycle</string>
+    <string name="modify_32">32</string>
+    <string name="modify_wallet">Wallet</string>
+    <string name="close_modify">closeModify</string>
+    <string name="modify_modify">Modify</string>
+    <string name="modify_cancel">Cancel</string>
+    
 </resources>

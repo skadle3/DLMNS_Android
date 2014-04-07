@@ -12,6 +12,10 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+	<uses-permission android:name="android.permission.VIBRATE" />
+	<uses-permission android:name="android.permission.CAMERA" />
+	<uses-feature android:name="android.hardware.camera.flash" />
+	<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:allowBackup="true"
@@ -25,7 +29,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity><activity android:name="ScanActivity" android:label="Scan for New Devices"></activity>
+        <activity android:name="UpdateTagConfig" android:label="Add New Tag Information"></activity>
         <service android:name="DLMMonitorService" android:enabled="true"/>
+        <activity android:name="ModifyTagMain"></activity>
         
         
     </application>

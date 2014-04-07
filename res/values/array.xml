@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+	<string-array name="duty_cycle_array">
+        <item>32</item>
+        <item>64</item>
+        <item>128</item>
+        <item>256</item>
+    </string-array>
+    
+</resources>
