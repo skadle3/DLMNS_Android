@@ -1,40 +1,35 @@
-<?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?><RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent" >
 
     <TextView
         android:id="@+id/textView1"
-        android:layout_width="wrap_content"
+        android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
-        android:layout_marginLeft="40dp"
+        android:layout_marginLeft="20dp"
         android:layout_marginTop="54dp"
         android:text="Change Tag Name"
         android:textAppearance="?android:attr/textAppearanceLarge" />
 
     <TextView
         android:id="@+id/textView2"
-        android:layout_width="wrap_content"
+        android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_alignLeft="@+id/textView1"
         android:layout_below="@+id/textView1"
         android:layout_marginTop="74dp"
-        android:text="Change Notification Threshold"
+        android:text="Change Alert Threshold"
         android:textAppearance="?android:attr/textAppearanceLarge" />
 
-    <EditText
-        android:id="@+id/editText1"
+    <Spinner
+        android:id="@+id/spinner1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignLeft="@+id/textView2"
         android:layout_below="@+id/textView2"
-        android:layout_marginTop="15dp"
-        android:ems="10"
-        android:inputType="number"
-        android:labelFor="@+id/editText1"
-        android:text="@string/modify_32" />
+        android:layout_marginTop="15dp" />
 
     <EditText
         android:id="@+id/editText2"
@@ -48,25 +43,14 @@
         android:labelFor="@+id/editText2"
         android:text="@string/modify_wallet" />
 
-    <Button
-        android:id="@+id/modify_tag_delete"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/editText1"
-        android:layout_alignParentBottom="true"
-        android:layout_alignRight="@+id/editText1"
-        android:layout_marginBottom="26dp"
-        android:background="#BF3030"
-        android:text="Delete Tag"
-        android:textColor="#FFFFFF" />
+
 
     <Button
-        android:id="@+id/modify_tag_modify"
-        android:layout_width="wrap_content"
+        android:id="@+id/modify_id_modify"
+        android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/delete_button"
-        android:layout_alignLeft="@+id/delete_button"
-        android:layout_alignRight="@+id/delete_button"
+        android:layout_above="@+id/delete_id_modify"
+        android:layout_alignParentLeft="true"
         android:layout_marginBottom="15dp"
         android:background="#00B647"
         android:text="Modify Tag Info"
